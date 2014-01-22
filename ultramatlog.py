@@ -10,7 +10,7 @@ import mdbase
 from optparse import OptionParser
 
 SERIALNAME="/dev/ttyUSB0" # can be overriden on command line
-DBNAME="/home/pi/ultrapy.db"
+DBNAME="/home/pi/ultrapy.db" #change on command line to user another db-file
 
 class Base():
     def __init__(self, x=0, y=0, mode=None):
