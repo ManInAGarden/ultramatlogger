@@ -5,7 +5,7 @@ import sqlite3
 
 STD_TIMEOUT=20
 
-class TypeBase():
+class TypeBase(object):
     DbType = None
 
     def __init__(self, isPrimary=False):
@@ -23,40 +23,79 @@ class TypeBase():
         return answ
 
 class Id(TypeBase):
+    """Use in any of your classes as the Id of the object"""
     DbType = "TEXT"
 
     def __init__(self, isPrimary=True):
-        super().__init__(isPrimary)
+        super(Id, self).__init__(isPrimary)
         self.DbLength = 40
 
-class ForeignKeyId(Id):
+
+class MultiClassForeignKeyId(Id):
+    """stores foreign keys to multiple (foreign) classes delivered as a list
+       like in mcid = MultiClassForeignKeyId([Person, Employee, Manager, Customer])
+
+       NOT YET IMPLEMENTED - WE HAVE TO STORE THE CLASS FOR A GIVEN ID IN AN ADDITIONAL
+       COLUMN NEXT TO THE ID SO THAT THE FKEY CAN BE RESOLVED IN SELECTS LIKE
+       SELECT * FROM SomeTable WHERE ID = 'asasasas'
+       AND SomeTable WAS TAKEN FROM THIS EXTRA COLUMN
+    """
     DbType = "TEXT"
 
-    def __init__(self, isPrimary=False, foreignClass=None):
-        super().__init__(isPrimary)
+    def __init__(self, foreignClasses, isPrimary=False):
+        raise Exception("not yet implemented")
+        super(ForeignKeyId, self).__init__(isPrimary)
+        self.ForeignClasses = foreignClasses
+        
+class ForeignKeyId(Id):
+    """stores foreign keys to exactly one (foreign) class"""
+    DbType = "TEXT"
+
+    def __init__(self, foreignClass, isPrimary=False):
+        super(ForeignKeyId, self).__init__(isPrimary)
         self.ForeignClass = foreignClass
+
+    def resolve_foreign_key(self, foreign_key_id):
+        """resolves the given foreign Key id to an object selected from the
+           database with the table initialized with this foreign key
+        """
+        answ = None
+        #print("resolving for <"
+        #      + str(self.ForeignClass)
+        #      + "> with Id: <"
+        #      + str(foreign_key_id)
+        #      + ">")
+        erg = self.ForeignClass.select("Id='" + str(foreign_key_id) + "'")
+        if len(erg)>1:
+            raise Exception("Foreign key <" + foreign_key_id + " not unique")
+        elif len(erg)==1:
+            answ = erg[0]
+
+        return answ
+        
+
 
 
 class Text(TypeBase):
     DbType = "TEXT"
 
     def __init__(self, length=50, isPrimary=False):
-        super().__init__(isPrimary)
+        super(Text, self).__init__(isPrimary)
         self.DbLength = length
-        self.IsPrimary = isPrimary
+
 
 class Number(TypeBase):
     DbType = "NUMBER"
 
-    def __init__(isPrimary=False):
-        super().__init__(isPrimary)
+    def __init__(self, isPrimary=False):
+        super(Number, self).__init__(isPrimary)
         
 class DateTime(TypeBase):
     """ class to represent a date or time or both in the database"""
     DbType = "TIMESTAMP"
 
     def __init__(self, isPrimary=False):
-        super().__init__(isPrimary)
+        super(DateTime, self).__init__(isPrimary)
 
 class PBase(object):
     """
@@ -176,12 +215,17 @@ class PBase(object):
     @classmethod
     def get_data_py_style(cls, dta, tdesc):
         answ = None
-        if type(tdesc) == Text:
+        t_tdesc = type(tdesc)
+        if t_tdesc == Text:
             answ = dta
-        elif type(tdesc) == DateTime:
+        elif t_tdesc == DateTime:
             answ = datetime.datetime.fromtimestamp(dta)
-        elif type(tdesc) == Id:
+        elif t_tdesc == Id or t_tdesc== ForeignKeyId  or t_tdesc == MultiClassForeignKeyId:
             answ = uuid.UUID(dta)
+        elif t_tdesc == Number:
+            answ = dta
+        else:
+            raise Exception("unknown data type")
             
         
         return answ
@@ -237,6 +281,25 @@ class PBase(object):
 
         return True
         
+    def resolve(self, attname):
+        """selects and returns the object which is found with the foreign key
+           stored in attribute given by attname
+        """
+        attval = getattr(self, attname)
+        #print("resolving for <" + str(attval) + ">")
+        
+        if attval == None:
+            return None
+        
+        cls = self.__class__
+        tdesc = cls.TypeDict[attname]
+        if type(tdesc) == ForeignKeyId:
+            return tdesc.resolve_foreign_key(attval)
+        elif type(tdesc) == MultiClassForeignKeyId:
+            raise Exception('Not yet implemented for multiple foreign classes')
+        else:
+            raise Exception('attribute ' + attname + ' is not a ForeignKeyId')
+
 
     def get_value_db_style(self, attname, tdesc):
         answ = None
@@ -347,10 +410,10 @@ class PBaseTimed(PBase):
 
     def flush(self, updateFirst = True):
         self.LastUpdate = datetime.datetime.now()
-        super().flush(updateFirst)
+        super(PBaseTimed, self).flush(updateFirst)
     
     def __init__(self):
-        super().__init__()
+        super(PBaseTimed, self).__init__()
         self.Created = datetime.datetime.today()
 
 class PBaseTimedCached(PBaseTimed):
@@ -358,13 +421,13 @@ class PBaseTimedCached(PBaseTimed):
     SelCache = {}
 
     @classmethod
-    def select(cls, where=None, order=None):
-        cachek = str(where) + "_____" + str(order)
+    def select(cls, whereClause=None, orderBy=None):
+        cachek = cls.__name__ + "_____" + str(whereClause) + "_____" + str(orderBy)
 
         if cachek in cls.SelCache:
             erg = cls.SelCache[cachek]
         else:
-            erg = super().select(where, order)
+            erg = super(PBaseTimedCached, cls).select(whereClause, orderBy)
             cls.SelCache[cachek] = erg
 
         return erg
@@ -372,4 +435,4 @@ class PBaseTimedCached(PBaseTimed):
         def flush(self):
             cls = self.__class__
             cls.SelCache.clear()
-            super().flush()
+            super(PBaseTimedCached, self).flush()

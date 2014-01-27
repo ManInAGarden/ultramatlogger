@@ -18,7 +18,7 @@ class Series(sqlp.PBaseTimed):
 
         
     def __init__(self):
-        super().__init__()
+        super(Series, self).__init__()
         self.Name = "series with no name"
         self.Description = ""
         self.Mode = ""
@@ -27,21 +27,6 @@ class Series(sqlp.PBaseTimed):
         return "Series: Id=" + str(self.Id) + " Name=" + self.Name + " Description=" + self.Description + " Created=" + str(self.Created)
 
     
-
-class Value(sqlp.PBaseTimed):
-    TableName="VALUE"
-    TypeDict = sqlp.PBaseTimed.TypeDict.copy()
-    TypeDict.update({"t": sqlp.DateTime(),
-                     "Name" : sqlp.Text(30),
-                     "Value": sqlp.Number(),
-                     "SeriesId":sqlp.ForeignKeyId(),
-                     "UnitId": sqlp.ForeignKeyId()})
-    
-    def __init__(self):
-        super().__init__()
-        self.t = datetime.datetime.now()
-        self.Value = 0
-
 
 class Unit(sqlp.PBaseTimedCached):
     TableName = "UNIT"
@@ -71,7 +56,22 @@ class Unit(sqlp.PBaseTimedCached):
             #print("created new unit", unit.Name)
 
     def __init__(self):
-        super().__init__()
+        super(Unit, self).__init__()
         self.Name = ""
         self.FactorToBase = 1.0
         self.BaseName = ""
+
+class Value(sqlp.PBaseTimed):
+    TableName="VALUE"
+    TypeDict = sqlp.PBaseTimed.TypeDict.copy()
+    TypeDict.update({"t": sqlp.DateTime(),
+                     "Name" : sqlp.Text(30),
+                     "Value": sqlp.Number(),
+                     "SeriesId":sqlp.ForeignKeyId(Series),
+                     "UnitId": sqlp.ForeignKeyId(Unit)})
+    
+    def __init__(self):
+        super(Value, self).__init__()
+        self.t = datetime.datetime.now()
+        self.Value = 0
+
