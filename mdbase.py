@@ -14,7 +14,8 @@ class Mdbase():
         sqm.Unit.initialize(self.dbfile)
         
         self.currentSeries = sqm.Series()
-        self.currentSeries.Name = "ULTRAMAT - " + self.mode
+        self.currentSeries.Name = "ULTRAMAT"
+        self.currentSeries.Mode = self.mode 
         self.currentSeries.flush()
 
     def inticks(self, s):

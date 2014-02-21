@@ -1,0 +1,4 @@
+#!/bin/sh
+#start ultramatlogger in quiet mode
+cd /home/pi/Benches/PythonBench/ultramatlogger
+/usr/bin/python3 ultramatlog.py -q

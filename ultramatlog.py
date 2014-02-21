@@ -54,9 +54,13 @@ class Reader():
         (self.options, self.parameters) = self.initparser()
         self.serialName = self.options.serialname
         self.dbName = self.options.dbname
+        self.verbose = self.options.verbose
         self.firststore = True
     
     def initcurses(self):
+        if self.verbose == False:
+            return
+        
         self.stdscr = curses.initscr()
         curses.noecho()
         curses.cbreak()
@@ -64,6 +68,9 @@ class Reader():
         self.init_screen()
 
     def endcurses(self):
+        if self.verbose == False:
+            return
+        
         curses.nocbreak()
         self.stdscr.keypad(0)
         curses.echo()
@@ -82,6 +89,9 @@ class Reader():
 
 
     def init_screen(self):
+        if self.verbose == False:
+            return
+        
         col0 = 0
         col1 = 45
         tcol0 = 22
@@ -123,6 +133,9 @@ class Reader():
 
 
     def display_screen(self, all=True):
+        if self.verbose == False:
+            return
+        
         for key, base in self.scr.items():
             if isinstance(base, Text) or all==True:
                 base.display(self.stdscr)
@@ -130,6 +143,9 @@ class Reader():
         self.stdscr.refresh()
         
     def display_data(self, values):
+        if self.verbose == False:
+            return
+        
         scr = self.scr
         for val in values:
             if val.name=="VersorgungsSpg":
@@ -169,8 +185,9 @@ class Reader():
 
     def work(self):
         ur = umat.UltraReader(self.serialName)
-        self.scr["interfaceT"].set_text(ur.get_info())
-        self.scr["dbnameT"].set_text(self.dbName)
+        if self.verbose == True:
+            self.scr["interfaceT"].set_text(ur.get_info())
+            self.scr["dbnameT"].set_text(self.dbName)
         
         self.display_screen()
         storageDelta = self.options.delta # STORAGE DELTA IN MS
@@ -191,13 +208,15 @@ class Reader():
                             current,
                             values)
                         currentDelta = 0
-                        if stored==True:
+                        if stored==True and self.verbose==True:
                             self.scr["lastTimeT"].set_text(str(current))
 
                     self.display_data(values)
                     currentDelta += ur.get_last_delta()
                     endtime = datetime.datetime.now()
-                    self.scr["cycleTimeT"].set_text(str((endtime-starttime).total_seconds()*1000)+"ms")
+
+                    if self.verbose==True:
+                        self.scr["cycleTimeT"].set_text(str((endtime-starttime).total_seconds()*1000)+"ms")
                             
         finally:
             ur.close()
